@@ -1,6 +1,8 @@
 import pygame
 import os
 from pacman import PacMan
+from A_star import RedGhost
+
 
 pygame.init()
 
@@ -39,11 +41,21 @@ for row_idx, row in enumerate(MAZE):
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Pac-Man Maze")
 pacman = PacMan(WIDTH // 2, (HEIGHT -  50) // 2, CELL_SIZE // 3.3, 3)
+
+# Khởi tạo con redghost có trúc trúc như bên dưới-----
+redghost = RedGhost(color=(255, 0, 0), start_position=(33, 33), maze=MAZE,size=(CELL_SIZE // 3.3,CELL_SIZE // 3.3),speed = 0,cell_size= CELL_SIZE)
+
 clock = pygame.time.Clock()
+
+#Innitialize RedGhost
+
+
 
 # Running game loop
 running = True
 score = 0 
+
+#flag = 0
 while running:
     screen.fill(BLACK)
     
@@ -62,8 +74,21 @@ while running:
     if pacman.move(walls, pellets):
         score += 10  # Increase score when a pellet is eaten
     pacman.draw(screen)
-    
-     # Display the score at the bottom-left corner of the screen
+    '''
+    Đoạn này để phòng hờ
+    flag += 1
+    if flag == CELL_SIZE:
+      redghost.update((pacman.x,pacman.y))
+      redghost.move()
+      flag =0
+    '''
+  
+   # Cập nhật cách chạy cho redghost theo vị trí của pacman và cho nó di chuyển 1 bước, vẽ redghost
+    redghost.update((pacman.x,pacman.y))
+    redghost.move()
+    redghost.draw(screen)
+  
+    # Display the score at the bottom-left corner of the screen
     score_text = font.render(f"Score: {score}", True, WHITE)
     screen.blit(score_text, (10, HEIGHT - 40))  # Place score at the bottom-left corner
 
