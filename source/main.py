@@ -1,6 +1,7 @@
 import pygame
 import os
 from pacman import PacMan
+from blueGhost import BlueGhost
 
 pygame.init()
 
@@ -39,6 +40,15 @@ for row_idx, row in enumerate(MAZE):
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Pac-Man Maze")
 pacman = PacMan(WIDTH // 2, (HEIGHT -  50) // 2, CELL_SIZE // 3.3, 3)
+blue_ghost = BlueGhost(
+    x=1 * CELL_SIZE + CELL_SIZE // 2,
+    y=1 * CELL_SIZE + CELL_SIZE // 2,
+    radius=CELL_SIZE // 3,
+    speed=1.5,
+    maze=MAZE,
+    cell_size=CELL_SIZE
+)
+
 clock = pygame.time.Clock()
 
 # Running game loop
@@ -67,6 +77,9 @@ while running:
     score_text = font.render(f"Score: {score}", True, WHITE)
     screen.blit(score_text, (10, HEIGHT - 40))  # Place score at the bottom-left corner
 
+    blue_ghost.update((pacman.x, pacman.y))
+    blue_ghost.move()
+    blue_ghost.draw(screen)
     
     # Update the display
     pygame.display.flip()
