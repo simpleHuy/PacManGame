@@ -1,5 +1,3 @@
-import time
-import psutil  # To monitor memory usage
 from collections import deque
 import pygame
 
@@ -31,13 +29,6 @@ class BlueGhost:
         visited = set()  # Set of visited cells
         parent = {}  # Dictionary to store parent cells, to reconstruct the path
 
-        # Record the start time for search
-        start_time = time.time()
-
-        # Measure memory usage
-        process = psutil.Process()
-        start_memory = process.memory_info().rss  # Get memory used (bytes)
-
         queue.append(start)  # Start from the start cell
         visited.add(start)  # Mark the start cell as visited
 
@@ -59,13 +50,6 @@ class BlueGhost:
                         queue.append((nx, ny))  # Add the cell to the queue
                         visited.add((nx, ny))  # Mark the cell as visited
                         parent[(nx, ny)] = current  # Store the parent of this cell
-
-        # Calculate search time
-        self.search_time = time.time() - start_time
-
-        # Calculate memory usage
-        end_memory = process.memory_info().rss
-        self.memory_usage = (end_memory - start_memory) / 1024  # Convert to KB
 
         # Reconstruct the path from the goal to the start
         path = []  # List to store the path
