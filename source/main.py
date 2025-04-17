@@ -80,7 +80,7 @@ while running:
     blue_ghost.update((pacman.x, pacman.y))
     blue_ghost.move()
     blue_ghost.draw(screen)
-
+    
     # Update the display
     pygame.display.flip()
     
