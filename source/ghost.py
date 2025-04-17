@@ -7,11 +7,14 @@ class Ghost(ABC):
     Base class for all ghosts with common properties and behaviors.
     Can be extended with different pathfinding algorithms.
     """
+    all_ghosts = []
+    
+
     def __init__(self, position, cell_size, maze, target=None, color=(255, 255, 255)):
         self.x, self.y = position
         self.cell_size = cell_size
         self.radius = int(cell_size * 0.5)
-        self.speed = max(1, int(cell_size / 10))
+        self.speed = 1 #max(1, int(cell_size / 12))
         self.maze = maze
         self.target = target  # This will be the Pacman object
         self.color = color
@@ -26,6 +29,12 @@ class Ghost(ABC):
         # Visualization variables for debug
         self.explored_nodes = []
         self.debug_mode = False
+        Ghost.all_ghosts.append(self)
+
+    def __del__(self):
+        """Remove self from all_ghosts when deleted"""
+        if self in Ghost.all_ghosts:
+            Ghost.all_ghosts.remove(self)
 
     def set_target(self, target):
         """Set the target (usually Pacman) for the ghost to chase"""
@@ -107,6 +116,11 @@ class Ghost(ABC):
             # If we've reached the next position, remove it from the path
             if abs(self.x - next_pixel_x) < self.speed and abs(self.y - next_pixel_y) < self.speed:
                 self.current_path.pop(0)
+
+        for ghost in Ghost.all_ghosts:
+            if ghost != self and self.check_collision_with_ghost(ghost):
+                self.avoid_collision()
+                break
 
     def draw(self, screen):
         """Draw the ghost"""
@@ -192,3 +206,60 @@ class Ghost(ABC):
         if self.target and self.rect.colliderect(self.target.rect):
             return True
         return False
+    
+    def get_occupied_cells(self):
+        """Returns a list of grid cells occupied by other ghosts"""
+        occupied_cells = []
+        for ghost in Ghost.all_ghosts:
+            if ghost != self:  # Don't include self
+                grid_x, grid_y = self.get_grid_position(ghost.x, ghost.y)
+                occupied_cells.append((grid_x, grid_y))
+        return occupied_cells
+        
+    def check_collision_with_ghost(self, other_ghost):
+        """Check if this ghost collides with another ghost"""
+        distance = math.sqrt((self.x - other_ghost.x)**2 + (self.y - other_ghost.y)**2)
+        collision_threshold = self.radius + other_ghost.radius - 2  # Slightly smaller than sum of radii
+        return distance < collision_threshold
+    
+    def avoid_collision(self):
+        """Adjust position to avoid collision with another ghost"""
+        # Find all ghosts this ghost is colliding with
+        colliding_ghosts = []
+        for ghost in Ghost.all_ghosts:
+            if ghost != self and self.check_collision_with_ghost(ghost):
+                colliding_ghosts.append(ghost)
+        
+        if not colliding_ghosts:
+            return
+        
+        # Calculate average direction away from colliding ghosts
+        dx, dy = 0, 0
+        for ghost in colliding_ghosts:
+            # Direction from other ghost to this ghost
+            direction_x = self.x - ghost.x
+            direction_y = self.y - ghost.y
+            
+            # Normalize
+            distance = math.sqrt(direction_x**2 + direction_y**2)
+            if distance > 0:
+                dx += direction_x / distance
+                dy += direction_y / distance
+        
+        # Normalize the average direction
+        magnitude = math.sqrt(dx**2 + dy**2)
+        if magnitude > 0:
+            dx = dx / magnitude
+            dy = dy / magnitude
+            
+        # Move slightly in that direction
+        self.x += dx * self.speed
+        self.y += dy * self.speed
+        
+        # Update rect
+        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, 
+                            self.radius * 2, self.radius * 2)
+        
+        # Force path recalculation
+        self.path_update_timer = self.path_update_delay
+

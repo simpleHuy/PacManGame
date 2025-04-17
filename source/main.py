@@ -2,7 +2,9 @@ import pygame
 import os
 from pacman import Pacman
 from maze import Maze
-from ucs_ghost import UCSGhost
+from ghostImpl.organgeGhost import OrangeGhost
+from ghostImpl.blueGhost import BlueGhost
+from ghostImpl.redGhost import RedGhost
 
 pygame.init()
 
@@ -25,22 +27,31 @@ YELLOW = (255, 255, 0)
 
 # Initialize
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Pac-Man Maze")
-pacman = Pacman((WIDTH // 2, (HEIGHT -  50) // 2), CELL_SIZE)
+pygame.display.set_caption("Pac-Man")
+pacman = Pacman((48, 36), CELL_SIZE)
 maze = Maze(CELL_SIZE, MAZE)
-ucs_ghost = UCSGhost((WIDTH // 4, HEIGHT // 4), CELL_SIZE, maze)
-ucs_ghost.set_target(pacman)
+
+# Initialize ghosts
+
+ghosts = []
+ucs_ghost = OrangeGhost((720 - 24, 576 - 24), CELL_SIZE, maze, pacman)
+ghosts.append(ucs_ghost)
+bfs_ghost = BlueGhost((720 - 24, 576 - 24), CELL_SIZE, maze, pacman)
+ghosts.append(bfs_ghost)
+astar_ghost = RedGhost((720 - 24, 576 - 24), CELL_SIZE, maze, pacman)
+ghosts.append(astar_ghost)
+
+# Set debug mode for ghosts
+# for ghost in ghosts:
+#     ghost.toggle_debug()
+
+
 clock = pygame.time.Clock()
-
-#Innitialize RedGhost
-
-
 
 # Running game loop
 running = True
 score = 0 
 
-#flag = 0
 while running:
     screen.fill(BLACK)
 
@@ -52,22 +63,31 @@ while running:
 
     # Update
     pacman.update(maze)
-    ucs_ghost.update()
+    for ghost in ghosts:
+        ghost.update()
+        
     score += maze.check_dot_collision(pacman.rect)
 
-    if ucs_ghost.check_collision_with_pacman():
-        # Game over if ghost catches Pacman
-        # You can implement a proper game over screen here
-        print("Game Over! Ghost caught you!")
+    game_over = False
+    for ghost in ghosts:
+        if ghost.check_collision_with_pacman():
+            # Game over if any ghost catches Pacman
+            print(f"Game Over! {ghost.__class__.__name__} caught you!")
+            game_over = True
+            break
+
+    if game_over:
         running = False
 
     # Draw
     maze.draw(screen)
     pacman.draw(screen)
-    ucs_ghost.draw(screen)
-    font = pygame.font.SysFont(None, 24)
+    for ghost in ghosts:
+        ghost.draw(screen)
+
+    font = pygame.font.SysFont(None, 40)
     score_text = font.render(f"Score: {score}", True, WHITE)
-    screen.blit(score_text, (10, 10))
+    screen.blit(score_text, (10, 610))
 
     # Update the display
     pygame.display.flip()
