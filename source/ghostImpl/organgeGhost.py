@@ -2,7 +2,7 @@ import heapq
 import pygame
 from ghost import Ghost
 
-class UCSGhost(Ghost):
+class OrangeGhost(Ghost):
     """Ghost that uses Uniform Cost Search algorithm to find Pacman"""
     
     def __init__(self, position, cell_size, maze, target=None):
