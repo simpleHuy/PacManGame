@@ -32,9 +32,15 @@ ucs_ghost = UCSGhost((WIDTH // 4, HEIGHT // 4), CELL_SIZE, maze)
 ucs_ghost.set_target(pacman)
 clock = pygame.time.Clock()
 
+#Innitialize RedGhost
+
+
+
 # Running game loop
 running = True
 score = 0 
+
+#flag = 0
 while running:
     screen.fill(BLACK)
 
