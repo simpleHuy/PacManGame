@@ -9,34 +9,37 @@ class Ghost(pygame.sprite.Sprite, ABC):
     Now inherits from pygame.sprite.Sprite for better game integration.
     """
     all_ghosts = pygame.sprite.Group()
-    
 
     def __init__(self, position, cell_size, maze, target=None, color=(255, 255, 255)):
-        pygame.sprite.Sprite.__init__(self)
-        self.x, self.y = position
-        self.cell_size = cell_size
-        self.radius = int(cell_size * 0.5)
-        self.speed = 1 #max(1, int(cell_size / 12))
-        self.maze = maze
-        self.target = target  # This will be the Pacman object
-        self.color = color
-        
-        # Create image and rect attributes (required for pygame.sprite.Sprite)
-        self.image = pygame.Surface([self.radius * 2, self.radius * 2], pygame.SRCALPHA)
-        self.rect = self.image.get_rect()
-        self.rect.center = (self.x, self.y)
-        
-        # Path variables
-        self.current_path = []
-        self.path_update_timer = 0
-        self.path_update_delay = 30  # Update path every 30 frames (0.5 seconds at 60FPS)
-        
-        # Visualization variables for debug
-        self.explored_nodes = []
-        self.debug_mode = False
-        
-        # Add to sprite group
-        Ghost.all_ghosts.add(self)
+            pygame.sprite.Sprite.__init__(self)
+            self.x, self.y = position
+            self.cell_size = cell_size
+            
+            # Replace radius with width and height
+            self.width = cell_size  # Full cell width
+            self.height = cell_size  # Full cell height
+            
+            self.speed = 1  # Movement speed
+            self.maze = maze
+            self.target = target  # This will be the Pacman object
+            self.color = color
+            
+            # Create image and rect attributes (required for pygame.sprite.Sprite)
+            self.image = pygame.Surface([self.width, self.height], pygame.SRCALPHA)
+            self.rect = self.image.get_rect()
+            self.rect.center = (self.x, self.y)
+            
+            # Path variables
+            self.current_path = []
+            self.path_update_timer = 0
+            self.path_update_delay = 30  # Update path every 30 frames (0.5 seconds at 60FPS)
+            
+            # Visualization variables for debug
+            self.explored_nodes = []
+            self.debug_mode = False
+            
+            # Add to sprite group
+            Ghost.all_ghosts.add(self)    
 
     def kill(self):
         """Override the sprite kill method to remove from all_ghosts"""
@@ -59,24 +62,39 @@ class Ghost(pygame.sprite.Sprite, ABC):
         return pixel_x, pixel_y
 
     def get_neighbors(self, grid_x, grid_y):
-        """Get valid neighboring cells (not walls)"""
+        """
+        Get valid neighboring cells 
+        - Exclude maze walls
+        - Exclude cells occupied by other ghosts
+        """
         directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]  # Up, Right, Down, Left
         neighbors = []
+        
+        # Get all grid positions of other ghosts
+        ghost_positions = set()
+        for ghost in Ghost.all_ghosts:
+            if ghost != self:
+                grid_pos = self.get_grid_position(ghost.x, ghost.y)
+                ghost_positions.add(grid_pos)
         
         for dx, dy in directions:
             new_x, new_y = grid_x + dx, grid_y + dy
             
-            # Create a temporary rect to check collision with walls
-            temp_pixel_x, temp_pixel_y = self.get_pixel_position(new_x, new_y)
-            temp_rect = pygame.Rect(
-                temp_pixel_x - self.radius, temp_pixel_y - self.radius,
-                self.radius * 2, self.radius * 2
-            )
-            
-            # Check if this position would collide with a wall
-            if not self.maze.check_collision(temp_rect):
-                neighbors.append((new_x, new_y))
+            # Check if this cell is not occupied by another ghost
+            if (new_x, new_y) not in ghost_positions:
+                # Create a temporary rect to check collision with walls
+                temp_pixel_x, temp_pixel_y = self.get_pixel_position(new_x, new_y)
+                temp_rect = pygame.Rect(
+                    temp_pixel_x - self.width // 2, 
+                    temp_pixel_y - self.height // 2,
+                    self.width, 
+                    self.height
+                )
                 
+                # Check if this position would collide with a wall
+                if not self.maze.check_collision(temp_rect):
+                    neighbors.append((new_x, new_y))
+        
         return neighbors
 
     @abstractmethod
@@ -130,84 +148,37 @@ class Ghost(pygame.sprite.Sprite, ABC):
                 
         # Redraw the ghost onto its image surface
         self._draw_ghost_image()
-
+    
     def _draw_ghost_image(self):
-        # """Draw the ghost onto its image surface"""
-        # # Clear the surface with transparent background
-        # self.image.fill((0, 0, 0, 0))
-        
-        # # Calculate center position on the surface
-        # center_x = self.radius
-        # center_y = self.radius
-        
-        # # Draw ghost body (semicircle with a wavy bottom)
-        # pygame.draw.circle(self.image, self.color, (center_x, center_y), self.radius)
-        # pygame.draw.rect(self.image, self.color, (0, center_y, self.radius * 2, self.radius))
-        
-        # # Draw wavy bottom
-        # wave_height = max(2, self.radius // 4)
-        # wave_width = self.radius // 2
-        # num_waves = 4
-        
-        # for i in range(num_waves):
-        #     wave_x = i * wave_width
-            
-        #     # Draw the wavy bottom using a small rectangle
-        #     wave_rect = pygame.Rect(wave_x, center_y + self.radius - wave_height,
-        #                          wave_width, wave_height * 2)
-        #     if i % 2 == 0:  # Alternating pattern
-        #         pygame.draw.rect(self.image, self.color, wave_rect)
-        #     else:
-        #         pygame.draw.rect(self.image, (0, 0, 0, 0), wave_rect)
-                
-        # # Draw eyes
-        # eye_radius = max(2, self.radius // 5)
-        # left_eye_pos = (center_x - self.radius // 2, center_y - self.radius // 4)
-        # right_eye_pos = (center_x + self.radius // 2, center_y - self.radius // 4)
-        
-        # pygame.draw.circle(self.image, (255, 255, 255), left_eye_pos, eye_radius)
-        # pygame.draw.circle(self.image, (255, 255, 255), right_eye_pos, eye_radius)
-        
-        # # Draw pupils - look toward Pacman if it exists
-        # pupil_radius = max(1, eye_radius // 2)
-        
-        # if self.target:
-        #     # Calculate direction to Pacman
-        #     dx = self.target.x - self.x
-        #     dy = self.target.y - self.y
-            
-        #     # Normalize and limit pupil movement
-        #     max_offset = eye_radius - pupil_radius
-        #     if dx != 0 or dy != 0:
-        #         distance = math.sqrt(dx**2 + dy**2)
-        #         dx = dx / distance * min(max_offset, distance)
-        #         dy = dy / distance * min(max_offset, distance)
-            
-        #     left_pupil_pos = (left_eye_pos[0] + int(dx//2), left_eye_pos[1] + int(dy//2))
-        #     right_pupil_pos = (right_eye_pos[0] + int(dx//2), right_eye_pos[1] + int(dy//2))
-        # else:
-        #     left_pupil_pos = left_eye_pos
-        #     right_pupil_pos = right_eye_pos
-        
-        # pygame.draw.circle(self.image, (0, 0, 255), left_pupil_pos, pupil_radius)
-        # pygame.draw.circle(self.image, (0, 0, 255), right_pupil_pos, pupil_radius)
-        """Draw the ghost as a simple rectangle"""
+        """Draw the ghost as a rectangular shape"""
         # Clear the surface with transparent background
         self.image.fill((0, 0, 0, 0))
         
         # Draw the rectangle body
-        rect_width = self.radius * 2
-        rect_height = self.radius * 2
-        rect = pygame.Rect(0, 0, rect_width, rect_height)
+        rect = pygame.Rect(0, 0, self.width, self.height)
         pygame.draw.rect(self.image, self.color, rect)
         
-        # Optional: Add simple eyes (two small rectangles)
-        eye_width = self.radius // 3
-        eye_height = self.radius // 3
-        pygame.draw.rect(self.image, (255, 255, 255), 
-                        (self.radius - eye_width - 2, self.radius // 2, eye_width, eye_height))
-        pygame.draw.rect(self.image, (255, 255, 255), 
-                        (self.radius + 2, self.radius // 2, eye_width, eye_height))
+        # Draw eyes (proportional to rectangle size)
+        eye_width = self.width // 4
+        eye_height = self.height // 4
+        
+        # Left eye
+        left_eye_rect = pygame.Rect(
+            self.width // 4 - eye_width // 2, 
+            self.height // 3, 
+            eye_width, 
+            eye_height
+        )
+        pygame.draw.rect(self.image, (255, 255, 255), left_eye_rect)
+        
+        # Right eye
+        right_eye_rect = pygame.Rect(
+            3 * self.width // 4 - eye_width // 2, 
+            self.height // 3, 
+            eye_width, 
+            eye_height
+        )
+        pygame.draw.rect(self.image, (255, 255, 255), right_eye_rect)
 
     def draw_debug(self, screen):
         """Draw debug information on the screen"""
@@ -238,59 +209,71 @@ class Ghost(pygame.sprite.Sprite, ABC):
         return False
     
     def get_occupied_cells(self):
-        """Returns a list of grid cells occupied by other ghosts"""
+        """
+        Returns a list of grid cells occupied by other ghosts
+        Ensures the current ghost doesn't count its own cell
+        """
         occupied_cells = []
         for ghost in Ghost.all_ghosts:
             if ghost != self:  # Don't include self
                 grid_x, grid_y = self.get_grid_position(ghost.x, ghost.y)
                 occupied_cells.append((grid_x, grid_y))
         return occupied_cells
-        
-    def check_collision_with_ghost(self, other_ghost):
-        """Check if this ghost collides with another ghost"""
-        distance = math.sqrt((self.x - other_ghost.x)**2 + (self.y - other_ghost.y)**2)
-        collision_threshold = self.radius + other_ghost.radius - 2  # Slightly smaller than sum of radii
-        return distance < collision_threshold
     
     def avoid_collision(self):
-        """Adjust position to avoid collision with another ghost"""
+        """
+        Enhanced collision avoidance strategy to separate overlapping ghosts
+        """
         # Find all ghosts this ghost is colliding with
-        colliding_ghosts = []
-        for ghost in Ghost.all_ghosts:
-            if ghost != self and self.check_collision_with_ghost(ghost):
-                colliding_ghosts.append(ghost)
+        colliding_ghosts = [
+            ghost for ghost in Ghost.all_ghosts 
+            if ghost != self and self.check_collision_with_ghost(ghost)
+        ]
         
         if not colliding_ghosts:
             return
         
-        # Calculate average direction away from colliding ghosts
-        dx, dy = 0, 0
-        for ghost in colliding_ghosts:
-            # Direction from other ghost to this ghost
-            direction_x = self.x - ghost.x
-            direction_y = self.y - ghost.y
+        # Aggressive separation strategy
+        for other_ghost in colliding_ghosts:
+            # Calculate overlap direction
+            dx = self.x - other_ghost.x
+            dy = self.y - other_ghost.y
             
-            # Normalize
-            distance = math.sqrt(direction_x**2 + direction_y**2)
-            if distance > 0:
-                dx += direction_x / distance
-                dy += direction_y / distance
-        
-        # Normalize the average direction
-        magnitude = math.sqrt(dx**2 + dy**2)
-        if magnitude > 0:
-            dx = dx / magnitude
-            dy = dy / magnitude
+            # Normalize direction
+            distance = math.sqrt(dx**2 + dy**2)
+            if distance == 0:
+                # If exactly on top of each other, add small random offset
+                import random
+                dx = random.choice([-1, 1]) * self.width
+                dy = random.choice([-1, 1]) * self.height
+                distance = math.sqrt(dx**2 + dy**2)
             
-        # Move slightly in that direction
-        self.x += dx * self.speed
-        self.y += dy * self.speed
-        
-        # Update rect
-        self.rect.center = (self.x, self.y)
+            # Separate ghosts by moving them apart
+            # Multiply speed to ensure separation
+            separation_factor = max(self.width, self.height)
+            move_x = (dx / distance) * separation_factor
+            move_y = (dy / distance) * separation_factor
+            
+            # Apply movement
+            self.x += move_x
+            self.y += move_y
+            
+            # Update rect
+            self.rect.center = (self.x, self.y)
         
         # Force path recalculation
+        self.current_path = self.calculate_path()
         self.path_update_timer = self.path_update_delay
+
+    def check_collision_with_ghost(self, other_ghost):
+        """
+        More robust collision detection for rectangular ghosts
+        """
+        # Calculate the overlap between two rectangles
+        x_overlap = (abs(self.x - other_ghost.x) * 2 < (self.width + other_ghost.width))
+        y_overlap = (abs(self.y - other_ghost.y) * 2 < (self.height + other_ghost.height))
+        
+        return x_overlap and y_overlap  
 
     @classmethod
     def update_all(cls):
