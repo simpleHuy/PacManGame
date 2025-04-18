@@ -2,7 +2,10 @@ import pygame
 import os
 from pacman import Pacman
 from maze import Maze
-from dfs_ghost import DFSGhost  # Import your DFSGhost class
+from ghost import Ghost
+from ghostImpl.organgeGhost import OrangeGhost
+from ghostImpl.blueGhost import BlueGhost
+from ghostImpl.redGhost import RedGhost
 
 pygame.init()
 
@@ -22,27 +25,36 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 YELLOW = (255, 255, 0)
 
-# Initialize the game window
+
+# Initialize game
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Pac-Man Maze with DFSGhost")
-
-# Create Pacman object
-pacman = Pacman((WIDTH // 2, (HEIGHT - 50) // 2), CELL_SIZE)
-
-# Create maze object
+pygame.display.set_caption("Pac-Man")
 maze = Maze(CELL_SIZE, MAZE)
 
-# Create DFSGhost and set Pacman as the target
-dfs_ghost = DFSGhost((WIDTH // 4, HEIGHT // 4), 10, 2, maze, CELL_SIZE, pacman)
+# Initialize sprites and sprite group
+all_sprites = pygame.sprite.Group()
 
-# Initialize game clock
+pacman = Pacman((48, 36), CELL_SIZE, maze)
+all_sprites.add(pacman)
+
+ucs_ghost = OrangeGhost((48, 576 - 24), CELL_SIZE, maze, pacman)
+bfs_ghost = BlueGhost((WIDTH // 2 - 48, 576 - 24), CELL_SIZE, maze, pacman)
+astar_ghost = RedGhost((720 - 24, 576 - 24), CELL_SIZE, maze, pacman)
+
+# Add all ghosts to the all_sprites group
+all_sprites.add(Ghost.all_ghosts)
+
+# Set debug mode for ghosts if needed
+# ucs_ghost.toggle_debug()
+# bfs_ghost.toggle_debug()
+# astar_ghost.toggle_debug()
+
 clock = pygame.time.Clock()
 
-# Initialize game variables
+# Running game loop
 running = True
 score = 0
 
-# Game loop
 while running:
     screen.fill(BLACK)
 
@@ -52,27 +64,38 @@ while running:
             running = False
         pacman.handle_event(event)
 
-    # Update game objects
-    pacman.update(maze)
-    dfs_ghost.update(pacman)  # Update DFSGhost based on Pacman
-
-    # Check for dot collision in maze and update score
+    # Update
+    pacman.update()
+    Ghost.update_all()
+        
     score += maze.check_dot_collision(pacman.rect)
 
-    # Check if the DFSGhost catches Pacman
-    if dfs_ghost.check_collision_with_pacman():
-        print("Game Over! DFSGhost caught you!")
+    # Check for collisions with ghosts
+    game_over = False
+    for ghost in Ghost.all_ghosts:
+        if ghost.check_collision_with_pacman():
+            # Game over if any ghost catches Pacman
+            print(f"Game Over! {ghost.__class__.__name__} caught you!")
+            game_over = True
+            break
+
+    if game_over:
         running = False
 
     # Draw the maze, Pacman, and DFSGhost
     maze.draw(screen)
-    pacman.draw(screen)
-    dfs_ghost.draw(screen)
+    
+    all_sprites.draw(screen)
+    
+    # Draw debug info for ghosts if enabled
+    for ghost in Ghost.all_ghosts:
+        if hasattr(ghost, 'debug_mode') and ghost.debug_mode:
+            ghost.draw_debug(screen)
 
-    # Display the score
-    font = pygame.font.SysFont(None, 24)
+    # Score display
+    font = pygame.font.SysFont(None, 40)
     score_text = font.render(f"Score: {score}", True, WHITE)
-    screen.blit(score_text, (10, 10))
+    screen.blit(score_text, (10, 610))
 
     # Update the screen display
     pygame.display.flip()
