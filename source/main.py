@@ -2,7 +2,7 @@ import pygame
 import os
 from pacman import Pacman
 from maze import Maze
-from ucs_ghost import UCSGhost
+from dfs_ghost import DFSGhost  # Import your DFSGhost class
 
 pygame.init()
 
@@ -22,57 +22,63 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 YELLOW = (255, 255, 0)
 
-
-# Initialize
+# Initialize the game window
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Pac-Man Maze")
-pacman = Pacman((WIDTH // 2, (HEIGHT -  50) // 2), CELL_SIZE)
+pygame.display.set_caption("Pac-Man Maze with DFSGhost")
+
+# Create Pacman object
+pacman = Pacman((WIDTH // 2, (HEIGHT - 50) // 2), CELL_SIZE)
+
+# Create maze object
 maze = Maze(CELL_SIZE, MAZE)
-ucs_ghost = UCSGhost((WIDTH // 4, HEIGHT // 4), CELL_SIZE, maze)
-ucs_ghost.set_target(pacman)
+
+# Create DFSGhost and set Pacman as the target
+dfs_ghost = DFSGhost((WIDTH // 4, HEIGHT // 4), 10, 2, maze, CELL_SIZE, pacman)
+
+# Initialize game clock
 clock = pygame.time.Clock()
 
-#Innitialize RedGhost
-
-
-
-# Running game loop
+# Initialize game variables
 running = True
-score = 0 
+score = 0
 
-#flag = 0
+# Game loop
 while running:
     screen.fill(BLACK)
 
-    # Handle input
+    # Handle user input events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         pacman.handle_event(event)
 
-    # Update
+    # Update game objects
     pacman.update(maze)
-    ucs_ghost.update()
+    dfs_ghost.update(pacman)  # Update DFSGhost based on Pacman
+
+    # Check for dot collision in maze and update score
     score += maze.check_dot_collision(pacman.rect)
 
-    if ucs_ghost.check_collision_with_pacman():
-        # Game over if ghost catches Pacman
-        # You can implement a proper game over screen here
-        print("Game Over! Ghost caught you!")
+    # Check if the DFSGhost catches Pacman
+    if dfs_ghost.check_collision_with_pacman():
+        print("Game Over! DFSGhost caught you!")
         running = False
 
-    # Draw
+    # Draw the maze, Pacman, and DFSGhost
     maze.draw(screen)
     pacman.draw(screen)
-    ucs_ghost.draw(screen)
+    dfs_ghost.draw(screen)
+
+    # Display the score
     font = pygame.font.SysFont(None, 24)
     score_text = font.render(f"Score: {score}", True, WHITE)
     screen.blit(score_text, (10, 10))
 
-    # Update the display
+    # Update the screen display
     pygame.display.flip()
 
     # Control the frame rate
     clock.tick(60)
 
+# Quit the game
 pygame.quit()
