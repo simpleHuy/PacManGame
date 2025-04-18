@@ -2,6 +2,7 @@ import pygame
 import os
 from pacman import Pacman
 from maze import Maze
+from ghost import Ghost
 from ghostImpl.organgeGhost import OrangeGhost
 from ghostImpl.blueGhost import BlueGhost
 from ghostImpl.redGhost import RedGhost
@@ -25,26 +26,28 @@ WHITE = (255, 255, 255)
 YELLOW = (255, 255, 0)
 
 
-# Initialize
+# Initialize game
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Pac-Man")
-pacman = Pacman((48, 36), CELL_SIZE)
 maze = Maze(CELL_SIZE, MAZE)
 
-# Initialize ghosts
+# Initialize sprites and sprite group
+all_sprites = pygame.sprite.Group()
 
-ghosts = []
-ucs_ghost = OrangeGhost((720 - 24, 576 - 24), CELL_SIZE, maze, pacman)
-ghosts.append(ucs_ghost)
-bfs_ghost = BlueGhost((720 - 24, 576 - 24), CELL_SIZE, maze, pacman)
-ghosts.append(bfs_ghost)
+pacman = Pacman((48, 36), CELL_SIZE, maze)
+all_sprites.add(pacman)
+
+ucs_ghost = OrangeGhost((48, 576 - 24), CELL_SIZE, maze, pacman)
+bfs_ghost = BlueGhost((WIDTH // 2 - 48, 576 - 24), CELL_SIZE, maze, pacman)
 astar_ghost = RedGhost((720 - 24, 576 - 24), CELL_SIZE, maze, pacman)
-ghosts.append(astar_ghost)
 
-# Set debug mode for ghosts
-# for ghost in ghosts:
-#     ghost.toggle_debug()
+# Add all ghosts to the all_sprites group
+all_sprites.add(Ghost.all_ghosts)
 
+# Set debug mode for ghosts if needed
+# ucs_ghost.toggle_debug()
+# bfs_ghost.toggle_debug()
+# astar_ghost.toggle_debug()
 
 clock = pygame.time.Clock()
 
@@ -62,14 +65,14 @@ while running:
         pacman.handle_event(event)
 
     # Update
-    pacman.update(maze)
-    for ghost in ghosts:
-        ghost.update()
+    pacman.update()
+    Ghost.update_all()
         
     score += maze.check_dot_collision(pacman.rect)
 
+    # Check for collisions with ghosts
     game_over = False
-    for ghost in ghosts:
+    for ghost in Ghost.all_ghosts:
         if ghost.check_collision_with_pacman():
             # Game over if any ghost catches Pacman
             print(f"Game Over! {ghost.__class__.__name__} caught you!")
@@ -81,10 +84,15 @@ while running:
 
     # Draw
     maze.draw(screen)
-    pacman.draw(screen)
-    for ghost in ghosts:
-        ghost.draw(screen)
+    
+    all_sprites.draw(screen)
+    
+    # Draw debug info for ghosts if enabled
+    for ghost in Ghost.all_ghosts:
+        if hasattr(ghost, 'debug_mode') and ghost.debug_mode:
+            ghost.draw_debug(screen)
 
+    # Score display
     font = pygame.font.SysFont(None, 40)
     score_text = font.render(f"Score: {score}", True, WHITE)
     screen.blit(score_text, (10, 610))

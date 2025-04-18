@@ -2,15 +2,17 @@ import pygame
 import math
 from abc import ABC, abstractmethod
 
-class Ghost(ABC):
+class Ghost(pygame.sprite.Sprite, ABC):
     """
     Base class for all ghosts with common properties and behaviors.
     Can be extended with different pathfinding algorithms.
+    Now inherits from pygame.sprite.Sprite for better game integration.
     """
-    all_ghosts = []
+    all_ghosts = pygame.sprite.Group()
     
 
     def __init__(self, position, cell_size, maze, target=None, color=(255, 255, 255)):
+        pygame.sprite.Sprite.__init__(self)
         self.x, self.y = position
         self.cell_size = cell_size
         self.radius = int(cell_size * 0.5)
@@ -18,8 +20,11 @@ class Ghost(ABC):
         self.maze = maze
         self.target = target  # This will be the Pacman object
         self.color = color
-        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, 
-                              self.radius * 2, self.radius * 2)
+        
+        # Create image and rect attributes (required for pygame.sprite.Sprite)
+        self.image = pygame.Surface([self.radius * 2, self.radius * 2], pygame.SRCALPHA)
+        self.rect = self.image.get_rect()
+        self.rect.center = (self.x, self.y)
         
         # Path variables
         self.current_path = []
@@ -29,12 +34,13 @@ class Ghost(ABC):
         # Visualization variables for debug
         self.explored_nodes = []
         self.debug_mode = False
-        Ghost.all_ghosts.append(self)
+        
+        # Add to sprite group
+        Ghost.all_ghosts.add(self)
 
-    def __del__(self):
-        """Remove self from all_ghosts when deleted"""
-        if self in Ghost.all_ghosts:
-            Ghost.all_ghosts.remove(self)
+    def kill(self):
+        """Override the sprite kill method to remove from all_ghosts"""
+        pygame.sprite.Sprite.kill(self)
 
     def set_target(self, target):
         """Set the target (usually Pacman) for the ghost to chase"""
@@ -82,7 +88,7 @@ class Ghost(ABC):
         pass
 
     def update(self):
-        """Update ghost position and path"""
+        """Update ghost position and path - now matches the sprite update pattern"""
         # Update path periodically
         self.path_update_timer += 1
         if self.path_update_timer >= self.path_update_delay:
@@ -110,77 +116,101 @@ class Ghost(ABC):
             self.y += dy
             
             # Update rect
-            self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, 
-                                  self.radius * 2, self.radius * 2)
+            self.rect.center = (self.x, self.y)
             
             # If we've reached the next position, remove it from the path
             if abs(self.x - next_pixel_x) < self.speed and abs(self.y - next_pixel_y) < self.speed:
                 self.current_path.pop(0)
 
+        # Check collision with other ghosts
         for ghost in Ghost.all_ghosts:
             if ghost != self and self.check_collision_with_ghost(ghost):
                 self.avoid_collision()
                 break
-
-    def draw(self, screen):
-        """Draw the ghost"""
-        # Draw ghost body (semicircle with a wavy bottom)
-        ghost_rect = pygame.Rect(self.x - self.radius, self.y - self.radius,
-                              self.radius * 2, self.radius * 2)
-        
-        # Draw ghost body
-        pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
-        pygame.draw.rect(screen, self.color, (self.x - self.radius, self.y, self.radius * 2, self.radius))
-        
-        # Draw wavy bottom
-        wave_height = max(2, self.radius // 4)
-        wave_width = self.radius // 2
-        num_waves = 4
-        
-        for i in range(num_waves):
-            wave_x = self.x - self.radius + i * wave_width
-            
-            # Draw the wavy bottom using a small rectangle
-            wave_rect = pygame.Rect(wave_x, self.y + self.radius - wave_height,
-                                 wave_width, wave_height * 2)
-            if i % 2 == 0:  # Alternating pattern
-                pygame.draw.rect(screen, self.color, wave_rect)
-            else:
-                pygame.draw.rect(screen, (0, 0, 0), wave_rect)
                 
-        # Draw eyes
-        eye_radius = max(2, self.radius // 5)
-        left_eye_pos = (self.x - self.radius // 2, self.y - self.radius // 4)
-        right_eye_pos = (self.x + self.radius // 2, self.y - self.radius // 4)
+        # Redraw the ghost onto its image surface
+        self._draw_ghost_image()
+
+    def _draw_ghost_image(self):
+        # """Draw the ghost onto its image surface"""
+        # # Clear the surface with transparent background
+        # self.image.fill((0, 0, 0, 0))
         
-        pygame.draw.circle(screen, (255, 255, 255), left_eye_pos, eye_radius)
-        pygame.draw.circle(screen, (255, 255, 255), right_eye_pos, eye_radius)
+        # # Calculate center position on the surface
+        # center_x = self.radius
+        # center_y = self.radius
         
-        # Draw pupils - look toward Pacman if it exists
-        pupil_radius = max(1, eye_radius // 2)
+        # # Draw ghost body (semicircle with a wavy bottom)
+        # pygame.draw.circle(self.image, self.color, (center_x, center_y), self.radius)
+        # pygame.draw.rect(self.image, self.color, (0, center_y, self.radius * 2, self.radius))
         
-        if self.target:
-            # Calculate direction to Pacman
-            dx = self.target.x - self.x
-            dy = self.target.y - self.y
+        # # Draw wavy bottom
+        # wave_height = max(2, self.radius // 4)
+        # wave_width = self.radius // 2
+        # num_waves = 4
+        
+        # for i in range(num_waves):
+        #     wave_x = i * wave_width
             
-            # Normalize and limit pupil movement
-            max_offset = eye_radius - pupil_radius
-            if dx != 0 or dy != 0:
-                distance = math.sqrt(dx**2 + dy**2)
-                dx = dx / distance * min(max_offset, distance)
-                dy = dy / distance * min(max_offset, distance)
+        #     # Draw the wavy bottom using a small rectangle
+        #     wave_rect = pygame.Rect(wave_x, center_y + self.radius - wave_height,
+        #                          wave_width, wave_height * 2)
+        #     if i % 2 == 0:  # Alternating pattern
+        #         pygame.draw.rect(self.image, self.color, wave_rect)
+        #     else:
+        #         pygame.draw.rect(self.image, (0, 0, 0, 0), wave_rect)
+                
+        # # Draw eyes
+        # eye_radius = max(2, self.radius // 5)
+        # left_eye_pos = (center_x - self.radius // 2, center_y - self.radius // 4)
+        # right_eye_pos = (center_x + self.radius // 2, center_y - self.radius // 4)
+        
+        # pygame.draw.circle(self.image, (255, 255, 255), left_eye_pos, eye_radius)
+        # pygame.draw.circle(self.image, (255, 255, 255), right_eye_pos, eye_radius)
+        
+        # # Draw pupils - look toward Pacman if it exists
+        # pupil_radius = max(1, eye_radius // 2)
+        
+        # if self.target:
+        #     # Calculate direction to Pacman
+        #     dx = self.target.x - self.x
+        #     dy = self.target.y - self.y
             
-            left_pupil_pos = (left_eye_pos[0] + int(dx//2), left_eye_pos[1] + int(dy//2))
-            right_pupil_pos = (right_eye_pos[0] + int(dx//2), right_eye_pos[1] + int(dy//2))
-        else:
-            left_pupil_pos = left_eye_pos
-            right_pupil_pos = right_eye_pos
+        #     # Normalize and limit pupil movement
+        #     max_offset = eye_radius - pupil_radius
+        #     if dx != 0 or dy != 0:
+        #         distance = math.sqrt(dx**2 + dy**2)
+        #         dx = dx / distance * min(max_offset, distance)
+        #         dy = dy / distance * min(max_offset, distance)
+            
+        #     left_pupil_pos = (left_eye_pos[0] + int(dx//2), left_eye_pos[1] + int(dy//2))
+        #     right_pupil_pos = (right_eye_pos[0] + int(dx//2), right_eye_pos[1] + int(dy//2))
+        # else:
+        #     left_pupil_pos = left_eye_pos
+        #     right_pupil_pos = right_eye_pos
         
-        pygame.draw.circle(screen, (0, 0, 255), left_pupil_pos, pupil_radius)
-        pygame.draw.circle(screen, (0, 0, 255), right_pupil_pos, pupil_radius)
+        # pygame.draw.circle(self.image, (0, 0, 255), left_pupil_pos, pupil_radius)
+        # pygame.draw.circle(self.image, (0, 0, 255), right_pupil_pos, pupil_radius)
+        """Draw the ghost as a simple rectangle"""
+        # Clear the surface with transparent background
+        self.image.fill((0, 0, 0, 0))
         
-        # Debug visualization
+        # Draw the rectangle body
+        rect_width = self.radius * 2
+        rect_height = self.radius * 2
+        rect = pygame.Rect(0, 0, rect_width, rect_height)
+        pygame.draw.rect(self.image, self.color, rect)
+        
+        # Optional: Add simple eyes (two small rectangles)
+        eye_width = self.radius // 3
+        eye_height = self.radius // 3
+        pygame.draw.rect(self.image, (255, 255, 255), 
+                        (self.radius - eye_width - 2, self.radius // 2, eye_width, eye_height))
+        pygame.draw.rect(self.image, (255, 255, 255), 
+                        (self.radius + 2, self.radius // 2, eye_width, eye_height))
+
+    def draw_debug(self, screen):
+        """Draw debug information on the screen"""
         if self.debug_mode:
             # Draw explored nodes
             for node in self.explored_nodes:
@@ -257,9 +287,22 @@ class Ghost(ABC):
         self.y += dy * self.speed
         
         # Update rect
-        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, 
-                            self.radius * 2, self.radius * 2)
+        self.rect.center = (self.x, self.y)
         
         # Force path recalculation
         self.path_update_timer = self.path_update_delay
 
+    @classmethod
+    def update_all(cls):
+        """Update all ghosts in the group"""
+        cls.all_ghosts.update()
+        
+    @classmethod
+    def draw_all(cls, screen):
+        """Draw all ghosts in the group"""
+        cls.all_ghosts.draw(screen)
+        
+        # Draw debug info for each ghost
+        for ghost in cls.all_ghosts:
+            if ghost.debug_mode:
+                ghost.draw_debug(screen)
