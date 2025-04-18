@@ -53,12 +53,12 @@ clock = pygame.time.Clock()
 
 # Running game loop
 running = True
-score = 0 
+score = 0
 
 while running:
     screen.fill(BLACK)
 
-    # Handle input
+    # Handle user input events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -82,7 +82,7 @@ while running:
     if game_over:
         running = False
 
-    # Draw
+    # Draw the maze, Pacman, and DFSGhost
     maze.draw(screen)
     
     all_sprites.draw(screen)
@@ -97,10 +97,11 @@ while running:
     score_text = font.render(f"Score: {score}", True, WHITE)
     screen.blit(score_text, (10, 610))
 
-    # Update the display
+    # Update the screen display
     pygame.display.flip()
 
     # Control the frame rate
     clock.tick(60)
 
+# Quit the game
 pygame.quit()
