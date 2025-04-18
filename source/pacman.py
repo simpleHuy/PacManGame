@@ -1,27 +1,39 @@
 import pygame
 import math
 
-class Pacman:
-    def __init__(self, position, CELL_SIZE):
+class Pacman(pygame.sprite.Sprite):
+    def __init__(self, position, cell_size, maze):
+        pygame.sprite.Sprite.__init__(self)
         self.x, self.y = position
-        self.radius = int(CELL_SIZE * 0.5)
-        # Scale speed relative to cell size too
-        self.speed = max(1, int(CELL_SIZE / 8))
+        self.radius = int(cell_size * 0.5)
+        self.cell_size = cell_size
+        # Scale speed relative to cell size
+        self.speed = max(1, int(cell_size / 8))
         self.direction = 'right'  # Initial direction
         self.next_direction = None
         self.animation_count = 0
         self.open_close = 0  # Animation state (0: closed, 1: half open, 2: fully open)
-        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, 
-                              self.radius * 2, self.radius * 2)
+        
+        # Create image and rect attributes (required for pygame.sprite.Sprite)
+        self.image = pygame.Surface([self.radius * 2, self.radius * 2], pygame.SRCALPHA)
+        self.rect = self.image.get_rect()
+        self.rect.center = (self.x, self.y)
+        
         self.frozen = True  # Pacman starts frozen
+        self.maze = maze  # Store maze reference for collision detection
+        
+        # First draw of the sprite image
+        self._draw_pacman_image()
     
     def change_direction(self, new_direction):
         # Store next direction, will change when possible
         self.next_direction = new_direction
     
-    def update(self, maze):
+    def update(self):
+        """Update method required by pygame.sprite.Sprite"""
         if self.frozen:
             return
+            
         # Try to change to the queued direction if possible
         if self.next_direction:
             temp_x, temp_y = self.x, self.y
@@ -35,10 +47,11 @@ class Pacman:
             elif self.next_direction == 'right':
                 temp_x += self.speed
             
-            temp_rect = pygame.Rect(temp_x - self.radius, temp_y - self.radius, 
-                                   self.radius * 2, self.radius * 2)
+            # Create a temporary rect to check collision
+            temp_rect = pygame.Rect(0, 0, self.radius * 2, self.radius * 2)
+            temp_rect.center = (temp_x, temp_y)
             
-            if not maze.check_collision(temp_rect):
+            if not self.maze.check_collision(temp_rect):
                 self.direction = self.next_direction
                 self.next_direction = None
         
@@ -54,55 +67,40 @@ class Pacman:
         elif self.direction == 'right':
             temp_x += self.speed
         
-        temp_rect = pygame.Rect(temp_x - self.radius, temp_y - self.radius, 
-                              self.radius * 2, self.radius * 2)
+        # Create a temporary rect to check collision
+        temp_rect = pygame.Rect(0, 0, self.radius * 2, self.radius * 2)
+        temp_rect.center = (temp_x, temp_y)
         
-        if not maze.check_collision(temp_rect):
+        if not self.maze.check_collision(temp_rect):
             self.x, self.y = temp_x, temp_y
-            self.rect = temp_rect
+            self.rect.center = (self.x, self.y)
         
         # Update animation
         self.animation_count += 1
         if self.animation_count >= 5:
             self.animation_count = 0
             self.open_close = (self.open_close + 1) % 3
+            
+        # Update the sprite image
+        self._draw_pacman_image()
     
-    def draw(self, screen):
-        # Draw Pac-Man with animation
-        if self.open_close == 0:  # Fully open (circle)
-            pygame.draw.circle(screen, (255, 255, 0), (self.x, self.y), self.radius)
-        else:
-            # Calculate angle based on direction
-            start_angle = 0
-            if self.direction == 'right':
-                start_angle = 0
-            elif self.direction == 'down':
-                start_angle = 90
-            elif self.direction == 'left':
-                start_angle = 180
-            elif self.direction == 'up':
-                start_angle = 270
-                
-            # Animation angles
-            mouth_size = 45 if self.open_close == 1 else 90  # Degrees
-            
-            pygame.draw.arc(screen, (255, 255, 0), 
-                         (self.x - self.radius, self.y - self.radius, 
-                          self.radius * 2, self.radius * 2),
-                         math.radians(start_angle + mouth_size/2), 
-                         math.radians(start_angle + 360 - mouth_size/2), 
-                         self.radius)
-            
-            # Draw eye
-            eye_x = self.x + self.radius * 0.4 * math.cos(math.radians(start_angle - 90))
-            eye_y = self.y + self.radius * 0.4 * math.sin(math.radians(start_angle - 90))
-            pygame.draw.circle(screen, (0, 0, 0), (int(eye_x), int(eye_y)), 3)
+    def _draw_pacman_image(self):
+        """Draw Pacman as a simple rectangle"""
+        # Clear the surface with transparent background
+        self.image.fill((0, 0, 0, 0))
+        
+        # Draw the rectangle body
+        rect_width = self.radius * 2
+        rect_height = self.radius * 2
+        rect = pygame.Rect(0, 0, rect_width, rect_height)
+        pygame.draw.rect(self.image, (255, 255, 0), rect)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             # press any key to unfreeze Pacman
             if self.frozen and event.key:
                 self.frozen = False
+                self._draw_pacman_image()  # Redraw when unfreezing
 
             if not self.frozen:
                 if event.key == pygame.K_UP:
