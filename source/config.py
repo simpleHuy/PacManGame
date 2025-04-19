@@ -49,7 +49,7 @@ PACMAN_CONFIG = {
 # Ghost Configuration
 GHOST_CONFIG = {
     # Global debug mode setting
-    'DEBUG': True,
+    'DEBUG': False,
     'SPEED': 1  # Speed of the ghosts
 }
 
