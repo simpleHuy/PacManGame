@@ -7,7 +7,7 @@ class BlueGhost(Ghost):
     """
     def __init__(self, position, cell_size, maze, target=None):
         # Call the parent constructor with blue color
-        super().__init__(position, cell_size, maze, target, color=(0, 0, 255))
+        super().__init__(position, cell_size, maze, target, ghostType='blue')
         
         # BFS specific statistics
         self.expanded_nodes = 0

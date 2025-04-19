@@ -1,5 +1,6 @@
 import pygame
 import math
+import os
 from abc import ABC, abstractmethod
 
 class Ghost(pygame.sprite.Sprite, ABC):
@@ -10,36 +11,39 @@ class Ghost(pygame.sprite.Sprite, ABC):
     """
     all_ghosts = pygame.sprite.Group()
 
-    def __init__(self, position, cell_size, maze, target=None, color=(255, 255, 255)):
-            pygame.sprite.Sprite.__init__(self)
-            self.x, self.y = position
-            self.cell_size = cell_size
-            
-            # Replace radius with width and height
-            self.width = cell_size  # Full cell width
-            self.height = cell_size  # Full cell height
-            
-            self.speed = 1  # Movement speed
-            self.maze = maze
-            self.target = target  # This will be the Pacman object
-            self.color = color
-            
-            # Create image and rect attributes (required for pygame.sprite.Sprite)
-            self.image = pygame.Surface([self.width, self.height], pygame.SRCALPHA)
-            self.rect = self.image.get_rect()
-            self.rect.center = (self.x, self.y)
-            
-            # Path variables
-            self.current_path = []
-            self.path_update_timer = 0
-            self.path_update_delay = 30  # Update path every 30 frames (0.5 seconds at 60FPS)
-            
-            # Visualization variables for debug
-            self.explored_nodes = []
-            self.debug_mode = False
-            
-            # Add to sprite group
-            Ghost.all_ghosts.add(self)    
+    def __init__(self, position, cell_size, maze, target=None, ghostType=None):
+        pygame.sprite.Sprite.__init__(self)
+        self.x, self.y = position
+        self.cell_size = cell_size
+        
+        # Load directional images for this ghost type
+        self.directional_images = self.load_ghost_images(ghostType, cell_size)
+        
+        self.width = cell_size
+        self.height = cell_size
+        
+        self.speed = 1
+        self.maze = maze
+        self.target = target
+        self.ghostType = ghostType
+        
+        # Use the right-facing image as default
+        self.image = self.directional_images['right']
+        self.rect = self.image.get_rect()
+        self.rect.center = (self.x, self.y)
+        self.current_direction = "right"
+        
+        # Path variables
+        self.current_path = []
+        self.path_update_timer = 0
+        self.path_update_delay = 30
+        
+        # Visualization variables for debug
+        self.explored_nodes = []
+        self.debug_mode = False
+        
+        # Add to sprite group
+        Ghost.all_ghosts.add(self)
 
     def kill(self):
         """Override the sprite kill method to remove from all_ghosts"""
@@ -97,6 +101,46 @@ class Ghost(pygame.sprite.Sprite, ABC):
         
         return neighbors
 
+    @classmethod
+    def load_ghost_images(cls, ghost_type, cell_size):
+        """
+        Load directional images for a specific ghost type
+        
+        Args:
+            ghost_type (str): Color of the ghost ('red', 'blue', 'pink', 'orange')
+            cell_size (int): Size to scale the images to
+        
+        Returns:
+            dict: Dictionary of directional images
+        """
+        # Possible directions
+        directions = ['right', 'left', 'up', 'down']
+        
+        # Images dictionary to store loaded images
+        images = {}
+        
+        # Construct base path
+        base_path = os.path.join('assets', f'{ghost_type}-ghost')
+        
+        try:
+            for direction in directions:
+                # Construct full file path
+                file_path = os.path.join(base_path, f'{direction}.png')
+                
+                # Load image
+                original_image = pygame.image.load(file_path).convert_alpha()
+                
+                # Scale image to cell size
+                scaled_image = pygame.transform.scale(original_image, (cell_size, cell_size))
+                
+                # Store scaled image
+                images[direction] = scaled_image
+            
+            return images
+        except Exception as e:
+            print(f"Error loading images for {ghost_type} ghost: {e}")
+            return None
+
     @abstractmethod
     def calculate_path(self):
         """
@@ -106,79 +150,88 @@ class Ghost(pygame.sprite.Sprite, ABC):
         pass
 
     def update(self):
-        """Update ghost position and path - now matches the sprite update pattern"""
-        # Update path periodically
+        """
+        Update ghost position and path with comprehensive movement logic
+        
+        This method handles:
+        - Periodic path recalculation
+        - Movement along the calculated path
+        - Directional image updates
+        - Collision avoidance
+        """
+        # Increment path update timer
         self.path_update_timer += 1
-        if self.path_update_timer >= self.path_update_delay:
+        
+        # Ensure we have a target to chase
+        if not self.target:
+            return
+        
+        # Store the last known target position if not already stored
+        if not hasattr(self, '_last_target_pos'):
+            self._last_target_pos = (self.target.x, self.target.y)
+        
+        # Get current target position
+        current_target_pos = (self.target.x, self.target.y)
+        
+        # Recalculate path if target has moved significantly and enough time has passed
+        if (current_target_pos != self._last_target_pos and 
+            self.path_update_timer >= self.path_update_delay):
+            # Recalculate path to new target position
             self.current_path = self.calculate_path()
+            self._last_target_pos = current_target_pos
             self.path_update_timer = 0
         
-        # If we have a path, follow it
-        if self.current_path and len(self.current_path) > 1:
-            # Get next position in path (skip current position)
-            next_grid_x, next_grid_y = self.current_path[1]
-            next_pixel_x, next_pixel_y = self.get_pixel_position(next_grid_x, next_grid_y)
+        # Proceed only if we have a valid path with at least two points
+        if not self.current_path or len(self.current_path) < 2:
+            return
+        
+        # Get next position in path (skip current position)
+        next_grid_x, next_grid_y = self.current_path[1]
+        next_pixel_x, next_pixel_y = self.get_pixel_position(next_grid_x, next_grid_y)
+        
+        # Determine movement direction
+        current_grid_x, current_grid_y = self.current_path[0]
+        if next_grid_x > current_grid_x:
+            self.current_direction = 'right'
+        elif next_grid_x < current_grid_x:
+            self.current_direction = 'left'
+        elif next_grid_y > current_grid_y:
+            self.current_direction = 'down'
+        elif next_grid_y < current_grid_y:
+            self.current_direction = 'up'
+        
+        # Update image to match current direction
+        self.image = self.directional_images[self.current_direction]
+        
+        # Calculate movement vector
+        dx = next_pixel_x - self.x
+        dy = next_pixel_y - self.y
+        
+        # Calculate distance and normalize movement
+        distance = math.sqrt(dx**2 + dy**2)
+        if distance > 0:
+            # Move at most the full speed, but not beyond the target
+            move_x = dx / distance * min(self.speed, distance)
+            move_y = dy / distance * min(self.speed, distance)
             
-            # Calculate direction to next position
-            dx = next_pixel_x - self.x
-            dy = next_pixel_y - self.y
+            # Update position
+            self.x += move_x
+            self.y += move_y
             
-            # Normalize direction
-            distance = math.sqrt(dx**2 + dy**2)
-            if distance > 0:
-                dx = dx / distance * min(self.speed, distance)
-                dy = dy / distance * min(self.speed, distance)
-            
-            # Move ghost
-            self.x += dx
-            self.y += dy
-            
-            # Update rect
+            # Update sprite rect
             self.rect.center = (self.x, self.y)
-            
-            # If we've reached the next position, remove it from the path
-            if abs(self.x - next_pixel_x) < self.speed and abs(self.y - next_pixel_y) < self.speed:
-                self.current_path.pop(0)
-
-        # Check collision with other ghosts
+        
+        # Check if we've reached the next grid position
+        if (abs(self.x - next_pixel_x) < self.speed and 
+            abs(self.y - next_pixel_y) < self.speed):
+            # Remove the reached position from the path
+            self.current_path.pop(0)
+        
+        # Collision avoidance with other ghosts
         for ghost in Ghost.all_ghosts:
             if ghost != self and self.check_collision_with_ghost(ghost):
                 self.avoid_collision()
                 break
-                
-        # Redraw the ghost onto its image surface
-        self._draw_ghost_image()
-    
-    def _draw_ghost_image(self):
-        """Draw the ghost as a rectangular shape"""
-        # Clear the surface with transparent background
-        self.image.fill((0, 0, 0, 0))
-        
-        # Draw the rectangle body
-        rect = pygame.Rect(0, 0, self.width, self.height)
-        pygame.draw.rect(self.image, self.color, rect)
-        
-        # Draw eyes (proportional to rectangle size)
-        eye_width = self.width // 4
-        eye_height = self.height // 4
-        
-        # Left eye
-        left_eye_rect = pygame.Rect(
-            self.width // 4 - eye_width // 2, 
-            self.height // 3, 
-            eye_width, 
-            eye_height
-        )
-        pygame.draw.rect(self.image, (255, 255, 255), left_eye_rect)
-        
-        # Right eye
-        right_eye_rect = pygame.Rect(
-            3 * self.width // 4 - eye_width // 2, 
-            self.height // 3, 
-            eye_width, 
-            eye_height
-        )
-        pygame.draw.rect(self.image, (255, 255, 255), right_eye_rect)
 
     def draw_debug(self, screen):
         """Draw debug information on the screen"""

@@ -1,62 +1,50 @@
 from ghost import Ghost
 
-class DFSFollowingGhost(Ghost):
-    def __init__(self, position, cell_size, maze, target_ghost=None, color=(100, 200, 100)):
-        """
-        Initialize a ghost that uses Depth-First Search to follow another ghost
+class PinkGhost(Ghost):
+    def __init__(self, position, cell_size, maze, target_ghost=None):
+        super().__init__(position, cell_size, maze, target=target_ghost, ghostType='pink')
         
-        :param position: Initial pixel position (x, y)
-        :param cell_size: Size of each cell in the maze
-        :param maze: Maze object for collision detection
-        :param target_ghost: The ghost that this ghost will follow
-        :param color: Color of the ghost (default is a green shade)
-        """
-        super().__init__(position, cell_size, maze, target=target_ghost, color=color)
-        
-        # Tracking exploration for DFS
-        self.explored_nodes = []
     
     def calculate_path(self):
         """
-        Calculate path using Depth-First Search to follow the target ghost
-        
-        :return: List of grid coordinates representing the path
+        Implement Depth-First Search pathfinding algorithm to find path to Pacman.
         """
-        # If no target ghost, return empty path
         if not self.target:
             return []
         
-        # Get current grid positions
-        start_grid_x, start_grid_y = self.get_grid_position(self.x, self.y)
-        target_grid_x, target_grid_y = self.get_grid_position(self.target.x, self.target.y)
+        # Get current grid position of ghost and Pacman
+        start = self.get_grid_position(self.x, self.y)
+        goal = self.get_grid_position(self.target.x, self.target.y)
         
-        # Reset explored nodes for debug visualization
+        # Reset explored nodes
         self.explored_nodes = []
         
-        # Initialize DFS variables
-        stack = [(start_grid_x, start_grid_y, [])]
-        visited = set([(start_grid_x, start_grid_y)])
-        
-        # Main DFS loop
+        # DFS algorithm implementation
+        stack = [(start, [])]
+        visited = set([start])
+
         while stack:
-            current_x, current_y, path = stack.pop()
+            current, path = stack.pop()
             
-            # If reached the target, return the path
-            if current_x == target_grid_x and current_y == target_grid_y:
-                return path + [(current_x, current_y)]
+            # Reached the goal
+            if current == goal:
+                return path + [current]
             
-            # Add to explored nodes for debug visualization
-            pixel_pos = self.get_pixel_position(current_x, current_y)
+            # Add to explored nodes for visualization
+            pixel_pos = self.get_pixel_position(current[0], current[1])
             self.explored_nodes.append(pixel_pos)
             
-            # Get valid neighboring cells
-            neighbors = self.get_neighbors(current_x, current_y)
+            # Get valid neighbors
+            neighbors = self.get_neighbors(current[0], current[1])
             
-            # Add unvisited neighbors to stack
-            for nx, ny in neighbors:
-                if (nx, ny) not in visited:
-                    visited.add((nx, ny))
-                    stack.append((nx, ny, path + [(current_x, current_y)]))
+            # Explore neighbors in a depth-first manner
+            for neighbor in neighbors:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    # Track the full path to this neighbor
+                    new_path = path + [current]
+                    stack.append((neighbor, new_path))
         
-        # No path found
-        return []
+        # If no path found, return to start
+        return [start]
+
