@@ -3,6 +3,8 @@ import math
 import os
 import config
 from abc import ABC, abstractmethod
+from collections import defaultdict, deque
+import time
 
 class Ghost(pygame.sprite.Sprite, ABC):
     """
@@ -17,7 +19,15 @@ class Ghost(pygame.sprite.Sprite, ABC):
         self.x, self.y = position
         self.cell_size = cell_size
         
-        # Load directional images for this ghost type
+        # Cell visit tracking
+        self.cell_visit_count = defaultdict(list)
+        self.max_visits_threshold = 3  # Maximum visits allowed in a short time
+        self.visit_time_window = 2.0  # Time window in seconds
+        self.blocked_cells = set()  # Cells that are temporarily blocked
+        self.blocked_cell_timeout = 5.0  # Time to keep a cell blocked
+        self.blocked_cell_timers = {}  # Timers for blocked cells
+        
+        # Rest of the initialization remains the same
         self.directional_images = self.load_ghost_images(ghostType, cell_size)
         
         self.width = cell_size
@@ -28,24 +38,58 @@ class Ghost(pygame.sprite.Sprite, ABC):
         self.target = target
         self.ghostType = ghostType
         
-        # Use the right-facing image as default
         self.image = self.directional_images['right']
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
         self.current_direction = "right"
         self.color = config.COLORS[ghostType.upper()]
         
-        # Path variables
         self.current_path = []
         self.path_update_timer = 0
         self.path_update_delay = 30
         
-        # Visualization variables for debug
         self.explored_nodes = []
         self.debug_mode = False
         
-        # Add to sprite group
         Ghost.all_ghosts.add(self)
+
+    def track_cell_visit(self, grid_pos):
+        """
+        Track visits to a specific cell and block if visited too frequently
+        """
+        current_time = time.time()
+        
+        # Remove old visit times outside the time window
+        self.cell_visit_count[grid_pos] = [
+            visit_time for visit_time in self.cell_visit_count[grid_pos] 
+            if current_time - visit_time <= self.visit_time_window
+        ]
+        
+        # Add current visit time
+        self.cell_visit_count[grid_pos].append(current_time)
+        
+        # Check if cell has been visited too many times
+        if len(self.cell_visit_count[grid_pos]) > self.max_visits_threshold:
+            # Block the cell
+            self.blocked_cells.add(grid_pos)
+            self.blocked_cell_timers[grid_pos] = current_time    
+
+    def check_and_unblock_cells(self):
+        """
+        Unblock cells that have been blocked for too long
+        """
+        current_time = time.time()
+        
+        # Find cells to unblock
+        cells_to_unblock = [
+            cell for cell, block_time in self.blocked_cell_timers.items()
+            if current_time - block_time > self.blocked_cell_timeout
+        ]
+        
+        # Unblock these cells
+        for cell in cells_to_unblock:
+            self.blocked_cells.discard(cell)
+            del self.blocked_cell_timers[cell]
 
     def kill(self):
         """Override the sprite kill method to remove from all_ghosts"""
@@ -72,7 +116,11 @@ class Ghost(pygame.sprite.Sprite, ABC):
         Get valid neighboring cells 
         - Exclude maze walls
         - Exclude cells occupied by other ghosts
+        - Exclude recently overused cells
         """
+        # First, check and unblock any expired blocked cells
+        self.check_and_unblock_cells()
+        
         directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]  # Up, Right, Down, Left
         neighbors = []
         
@@ -85,9 +133,14 @@ class Ghost(pygame.sprite.Sprite, ABC):
         
         for dx, dy in directions:
             new_x, new_y = grid_x + dx, grid_y + dy
+            current_cell = (new_x, new_y)
+            
+            # Skip if cell is blocked
+            if current_cell in self.blocked_cells:
+                continue
             
             # Check if this cell is not occupied by another ghost
-            if (new_x, new_y) not in ghost_positions:
+            if current_cell not in ghost_positions:
                 # Create a temporary rect to check collision with walls
                 temp_pixel_x, temp_pixel_y = self.get_pixel_position(new_x, new_y)
                 temp_rect = pygame.Rect(
@@ -99,7 +152,7 @@ class Ghost(pygame.sprite.Sprite, ABC):
                 
                 # Check if this position would collide with a wall
                 if not self.maze.check_collision(temp_rect):
-                    neighbors.append((new_x, new_y))
+                    neighbors.append(current_cell)
         
         return neighbors
 
@@ -167,7 +220,9 @@ class Ghost(pygame.sprite.Sprite, ABC):
         # Ensure we have a target to chase
         if not self.target:
             return
-        
+        current_grid_pos = self.get_grid_position(self.x, self.y)
+        self.track_cell_visit(current_grid_pos)
+
         # Store the last known target position if not already stored
         if not hasattr(self, '_last_target_pos'):
             self._last_target_pos = (self.target.x, self.target.y)
