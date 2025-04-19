@@ -7,7 +7,7 @@ class OrangeGhost(Ghost):
     
     def __init__(self, position, cell_size, maze, target=None):
         # Initialize with orange color
-        super().__init__(position, cell_size, maze, target, color=(255, 165, 0))
+        super().__init__(position, cell_size, maze, target, ghostType='orange')
 
     def calculate_path(self):
         """Use Uniform Cost Search to find path to Pacman"""
