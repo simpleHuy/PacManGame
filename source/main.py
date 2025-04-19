@@ -3,6 +3,7 @@ import config
 from pacman import Pacman
 from maze import Maze
 from ghost import Ghost
+from datetime import datetime
 
 def handle_game_end(screen, score, is_win=False):
     # Load appropriate image based on game outcome
@@ -42,18 +43,27 @@ def initialize_game_objects(width, height, maze_layout, cell_size):
     # Initialize maze
     maze = Maze(cell_size, maze_layout)
 
-    # Initialize sprites and sprite group
-    all_sprites = pygame.sprite.Group()
+    # Get initial entity positions
+    initial_positions = maze.get_initial_entity_positions()
 
     # Initialize Pacman
-    pacman = Pacman((width // 2, (height - 50) // 2), cell_size, maze)
+    pacman_pos = initial_positions.get('M', (width // 2, (height - 50) // 2))
+    pacman = Pacman(pacman_pos, cell_size, maze)
+
+    # Initialize Sprites
+    all_sprites = pygame.sprite.Group()
     all_sprites.add(pacman)
 
-    # Initialize Ghosts using the ghost manager
-    all_ghosts = config.ghost_manager.initialize(width, height, cell_size, maze, pacman)
-    
-    # Add all ghosts to the all_sprites group
-    all_sprites.add(all_ghosts)
+    # Initialize Ghosts using initial positions and configuration
+    ghost_types = ['P', 'R', 'O', 'B']
+    for ghost_type in ghost_types:
+        if ghost_type in initial_positions:
+            ghost_class = config.GHOST_TYPES.get(ghost_type.lower().replace('p', 'pink').replace('r', 'red').replace('o', 'orange').replace('b', 'blue'))
+            
+            if ghost_class:
+                ghost = ghost_class(initial_positions[ghost_type], cell_size, maze, pacman)
+                ghost.debug_mode = config.GHOST_CONFIG['DEBUG']
+                all_sprites.add(ghost)
 
     return maze, pacman, all_sprites
 
