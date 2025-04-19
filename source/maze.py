@@ -1,4 +1,5 @@
 import pygame
+import config
 
 class Maze:
     def __init__(self, CELL_SIZE, maze, offset_x=0, offset_y=0):
@@ -51,7 +52,7 @@ class Maze:
 
     def draw(self, screen):
         for wall in self.walls:
-            pygame.draw.rect(screen, (0, 0, 255), wall)
+            pygame.draw.rect(screen, config.COLORS['WALL'], wall)
 
         for dot in self.dots:
-            pygame.draw.rect(screen, (255, 255, 255), dot)
+            pygame.draw.rect(screen, config.COLORS['DOT'], dot)

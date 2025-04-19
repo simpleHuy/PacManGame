@@ -1,6 +1,7 @@
 import pygame
 import math
 import os
+import config
 from abc import ABC, abstractmethod
 
 class Ghost(pygame.sprite.Sprite, ABC):
@@ -22,7 +23,7 @@ class Ghost(pygame.sprite.Sprite, ABC):
         self.width = cell_size
         self.height = cell_size
         
-        self.speed = 1
+        self.speed = config.GHOST_CONFIG['SPEED']
         self.maze = maze
         self.target = target
         self.ghostType = ghostType
@@ -32,6 +33,7 @@ class Ghost(pygame.sprite.Sprite, ABC):
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
         self.current_direction = "right"
+        self.color = config.COLORS[ghostType.upper()]
         
         # Path variables
         self.current_path = []

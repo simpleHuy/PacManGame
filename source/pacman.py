@@ -1,6 +1,7 @@
 import pygame
 import math
 import os
+import config
 
 class Pacman(pygame.sprite.Sprite):
     def __init__(self, position, cell_size, maze):
@@ -13,7 +14,7 @@ class Pacman(pygame.sprite.Sprite):
         self.base_images = self.load_pacman_images(cell_size)
         
         # Scale speed relative to cell size
-        self.speed = max(1, int(cell_size / 8))
+        self.speed = config.PACMAN_CONFIG['SPEED']
         self.direction = 'right'  # Initial direction
         self.next_direction = None
         self.animation_count = 0
