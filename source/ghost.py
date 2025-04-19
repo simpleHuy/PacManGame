@@ -91,10 +91,6 @@ class Ghost(pygame.sprite.Sprite, ABC):
             self.blocked_cells.discard(cell)
             del self.blocked_cell_timers[cell]
 
-    def kill(self):
-        """Override the sprite kill method to remove from all_ghosts"""
-        pygame.sprite.Sprite.kill(self)
-
     def set_target(self, target):
         """Set the target (usually Pacman) for the ghost to chase"""
         self.target = target
@@ -318,17 +314,17 @@ class Ghost(pygame.sprite.Sprite, ABC):
             return True
         return False
     
-    def get_occupied_cells(self):
-        """
-        Returns a list of grid cells occupied by other ghosts
-        Ensures the current ghost doesn't count its own cell
-        """
-        occupied_cells = []
-        for ghost in Ghost.all_ghosts:
-            if ghost != self:  # Don't include self
-                grid_x, grid_y = self.get_grid_position(ghost.x, ghost.y)
-                occupied_cells.append((grid_x, grid_y))
-        return occupied_cells
+    # def get_occupied_cells(self):
+    #     """
+    #     Returns a list of grid cells occupied by other ghosts
+    #     Ensures the current ghost doesn't count its own cell
+    #     """
+    #     occupied_cells = []
+    #     for ghost in Ghost.all_ghosts:
+    #         if ghost != self:  # Don't include self
+    #             grid_x, grid_y = self.get_grid_position(ghost.x, ghost.y)
+    #             occupied_cells.append((grid_x, grid_y))
+    #     return occupied_cells
     
     def avoid_collision(self):
         """
